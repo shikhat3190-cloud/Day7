@@ -27,6 +27,7 @@ CREATE TABLE Customers (
 );
 """)
 
+
 # Create Orders table
 cursor.execute("""
 CREATE TABLE Orders (
@@ -55,6 +56,62 @@ conn.commit()
 conn.close()
 
 print(f"Mock database '{DB_FILE}' created successfully.")
+
+
+
+# Get API keys from environment variables
+from google.colab import userdata
+gemini_api_key = userdata.get("GOOGLE_API_KEY")
+if not gemini_api_key:
+    print("Warning: GEMINI_API_KEY not found. Gemini model will not run.")
+  
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.output_parsers import StrOutputParser
+
+# --- Model Initialization ---
+# Gemini is required for the specialized reasoning in the SQL Agent.
+llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=gemini_api_key,
+        temperature=0.3 )
+
+
+from langchain_community.agent_toolkits import create_sql_agent
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+
+# WARNING: Ensure the connection details only grant read-only access in production environments.
+db = SQLDatabase.from_uri(f"sqlite:///{DB_FILE}")
+
+# The Toolkit exposes SQL specific tools to the Agent
+toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+
+# Create the final SQL Agent Executor
+# verbose=True shows the Agent's reasoning process (CoT)
+sql_agent_executor = create_sql_agent(
+    llm=llm,
+    toolkit=toolkit,
+    verbose = True
+)
+
+print("SQL Agent initialized and connected to the database.")
+
+query_sql = "Give me name of customers from Canada?"
+
+print("\n" + "="*50)
+print(f"Executing: {query_sql}")
+print("="*50)
+
+try:
+    response = sql_agent_executor.invoke({"input": query_sql})
+    print("\n--- FINAL ANSWER ---")
+    print(response["output"])
+except Exception as e:
+    print(f"\nAn error occurred during SQL Agent execution: {e}")
+
+print("\n" + "="*50)
+print(f"Executing: {query_sql}")
+print("="*50)
+
 
 
 
