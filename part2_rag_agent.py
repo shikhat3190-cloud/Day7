@@ -45,3 +45,25 @@ def split_documents(documents, chunk_size=1000, chunk_overlap=150):
 # Example:
 splits = split_documents(documents)
 print(f"Created chunks: {len(splits)}")
+
+# Load Embedding model
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+def get_gemini_embeddings(model="models/text-embedding-004"):
+    return GoogleGenerativeAIEmbeddings(model=model,api_key=GEMINI_API_KEY)
+
+embeddings = get_gemini_embeddings()
+
+## Vector Storage using Chroma DB
+from langchain_community.vectorstores import Chroma
+
+def create_vector_db(chunks, embeddings, db_path="./chroma_db"):
+    vectordb = Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        persist_directory=db_path
+    )
+    vectordb.persist()
+    return vectordb
+
+vectordb = create_vector_db(splits, embeddings)
+print("ChromaDB Created & Persisted.")
